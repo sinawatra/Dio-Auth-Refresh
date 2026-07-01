@@ -80,7 +80,7 @@ class MyRefreshHandler implements RefreshHandler {
   }
 }
 🧠 How It Works
-Request → Attach Token
+{Request → Attach Token
          ↓
       401 Error
          ↓
@@ -88,16 +88,16 @@ Request → Attach Token
          ↓
  Queue waiting requests
          ↓
- Retry original request
+ Retry original request}
 🚫 Skip Endpoints
-final options = DioRefreshOptions(
+{final options = DioRefreshOptions(
   excludedPaths: [
     "/login",
     "/refresh",
   ],
-);
+);}
 ⚡ Example Usage
-final dio = Dio();
+{final dio = Dio();
 
 final authManager = AuthManager(
   tokenStorage: MyStorage(),
@@ -116,9 +116,9 @@ dio.interceptors.add(
     authManager: authManager,
     refreshController: refreshController,
   ),
-);
+);}
 🧠 Architecture
-Interceptor
+{Interceptor
    ↓
 AuthManager
    ↓
@@ -126,7 +126,7 @@ RefreshController
    ↓
 TokenStorage + RefreshHandler
    ↓
-RequestQueue + Mutex
+RequestQueue + Mutex}
 ⚠️ Notes
 Only retries each request once
 Prevents infinite refresh loops
