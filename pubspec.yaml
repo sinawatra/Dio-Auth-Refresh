@@ -1,6 +1,6 @@
 name: dio_auth_refresh
 description: Lightweight authentication interceptor with automatic token refresh and retry for Dio.
-version:  0.0.1
+version:  0.0.2  # small fix + readme guideline
 homepage:
 
 environment:
