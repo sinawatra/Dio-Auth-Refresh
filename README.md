@@ -57,13 +57,15 @@ class MyRefreshHandler implements RefreshHandler {
   @override
   Future<AuthTokens> refresh(String refreshToken) async {
     final response = await dio.post(
-      '/refresh',
+      'https://---ur--refresh-token--api/api/v1/auth/refresh',
       data: {'refreshToken': refreshToken},
     );
 
+    final data = response.data['data'] as Map<String, dynamic>;
+
     return AuthTokens(
-      accessToken: response.data['accessToken'] as String,
-      refreshToken: response.data['refreshToken'] as String,
+      accessToken: data['accessToken'] as String,
+      refreshToken: data['refreshToken'] as String,
     );
   }
 }
@@ -76,7 +78,7 @@ final auth = AuthenticationManager(
   tokenStorage: MemoryTokenStorage(),
   refreshHandler: MyRefreshHandler(refreshDio),
   options: const EasyAuthOptions(
-    excludedPaths: ['/login', '/refresh'],
+    excludedPaths: ['/api/v1/auth/login', '/api/v1/auth/refresh'],
   ),
   mutex: RefreshMutex(),
 );
@@ -93,3 +95,4 @@ Notes:
 
 - Use a separate `Dio` instance for refresh calls (`refreshDio`) or ensure your refresh endpoint is in `excludedPaths` to prevent interceptor recursion.
 - `AuthInterceptor` will only retry a request once to avoid infinite refresh loops.
+- If your backend returns `{ statusCode, message, data }`, parse tokens from `response.data['data']`.
