@@ -1,5 +1,4 @@
-
-import '../../dio_auth_refresh.dart';
+import '../model/auth_tokens.dart';
 
 abstract class RefreshHandler {
   Future<AuthTokens> refresh(String refreshToken);

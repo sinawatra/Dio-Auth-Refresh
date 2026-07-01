@@ -1,6 +1,4 @@
-
-
-import '../../dio_auth_refresh.dart';
+import 'auth_logger.dart';
 
 class ConsoleLogger implements AuthLogger {
   @override

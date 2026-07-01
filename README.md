@@ -1,65 +1,53 @@
-📦 Dio Refresh Token
+# dio_auth_refresh
 
-A lightweight Dio interceptor for automatic access token refresh, request retry, and safe concurrent request handling in Flutter apps.
+A lightweight Dio interceptor for automatically attaching access tokens, refreshing tokens on 401, and retrying the original request safely (single refresh call at a time).
 
-✨ Features
-🔐 Automatically attach Authorization header
-🔄 Auto refresh access token on 401
-♻️ Retry original request after refresh
-🧠 Prevent multiple simultaneous refresh calls (mutex lock)
-⏳ Queue requests while refreshing
-🚫 Skip excluded endpoints
-🧩 Fully customizable token storage
-🔌 Custom refresh API handler
-🛡 Prevent infinite retry loops
-🚀 Installation
+## Features
+
+- Automatically attach an Authorization header (configurable header + scheme)
+- Refresh access token on 401 (with excluded paths)
+- Retry the original request once after a successful refresh
+- Prevent multiple simultaneous refresh calls (mutex lock)
+
+## Installation
 
 Add dependency:
 
+```yaml
 dependencies:
-  dio_refresh_token: ^0.3.0
-⚙️ Basic Setup
+  dio_auth_refresh: ^0.0.1
+```
+
+## Usage
+
+1) Implement `TokenStorage` (Secure Storage, Hive, etc.)
+2) Implement `RefreshHandler` (how your API refresh works)
+3) Create an `AuthenticationManager`
+4) Add `AuthInterceptor` to your Dio instance
+
+```dart
 import 'package:dio/dio.dart';
-import 'package:dio_refresh_token/dio_refresh_token.dart';
+import 'package:dio_auth_refresh/dio_auth_refresh.dart';
 
-final dio = Dio();
+class MemoryTokenStorage implements TokenStorage {
+  AuthTokens? _tokens;
 
-dio.interceptors.add(
-  DioRefreshInterceptor(
-    dio: dio,
-    authManager: authManager,
-    refreshController: refreshController,
-  ),
-);
-🔐 Token Model
-class AuthTokens {
-  final String accessToken;
-  final String refreshToken;
+  @override
+  Future<String?> getAccessToken() async => _tokens?.accessToken;
 
-  AuthTokens({
-    required this.accessToken,
-    required this.refreshToken,
-  });
+  @override
+  Future<String?> getRefreshToken() async => _tokens?.refreshToken;
+
+  @override
+  Future<void> save(AuthTokens tokens) async {
+    _tokens = tokens;
+  }
+
+  @override
+  Future<void> clear() async {
+    _tokens = null;
+  }
 }
-💾 Token Storage
-
-Implement your own storage (Secure Storage, Hive, etc.)
-
-abstract class TokenStorage {
-  Future<String?> getAccessToken();
-  Future<String?> getRefreshToken();
-  Future<void> save(AuthTokens tokens);
-  Future<void> clear();
-}
-🔄 Refresh Handler
-
-Define how your API refresh works:
-
-abstract class RefreshHandler {
-  Future<AuthTokens> refresh(String refreshToken);
-}
-
-Example:
 
 class MyRefreshHandler implements RefreshHandler {
   final Dio dio;
@@ -69,79 +57,39 @@ class MyRefreshHandler implements RefreshHandler {
   @override
   Future<AuthTokens> refresh(String refreshToken) async {
     final response = await dio.post(
-      "/refresh",
-      data: {"refreshToken": refreshToken},
+      '/refresh',
+      data: {'refreshToken': refreshToken},
     );
 
     return AuthTokens(
-      accessToken: response.data["accessToken"],
-      refreshToken: response.data["refreshToken"],
+      accessToken: response.data['accessToken'] as String,
+      refreshToken: response.data['refreshToken'] as String,
     );
   }
 }
-🧠 How It Works
-{Request → Attach Token
-         ↓
-      401 Error
-         ↓
-   Refresh Token (ONLY ONCE)
-         ↓
- Queue waiting requests
-         ↓
- Retry original request}
-🚫 Skip Endpoints
-{final options = DioRefreshOptions(
-  excludedPaths: [
-    "/login",
-    "/refresh",
-  ],
-);}
-⚡ Example Usage
-{final dio = Dio();
 
-final authManager = AuthManager(
-  tokenStorage: MyStorage(),
-  refreshHandler: MyRefreshHandler(dio),
-);
+final apiDio = Dio();
+final refreshDio = Dio();
 
-final refreshController = RefreshController(
-  authManager: authManager,
-  queue: RequestQueue(),
+final auth = AuthenticationManager(
+  dio: apiDio,
+  tokenStorage: MemoryTokenStorage(),
+  refreshHandler: MyRefreshHandler(refreshDio),
+  options: const EasyAuthOptions(
+    excludedPaths: ['/login', '/refresh'],
+  ),
   mutex: RefreshMutex(),
 );
 
-dio.interceptors.add(
-  DioRefreshInterceptor(
-    dio: dio,
-    authManager: authManager,
-    refreshController: refreshController,
+apiDio.interceptors.add(
+  AuthInterceptor(
+    dio: apiDio,
+    auth: auth,
   ),
-);}
-🧠 Architecture
-{Interceptor
-   ↓
-AuthManager
-   ↓
-RefreshController
-   ↓
-TokenStorage + RefreshHandler
-   ↓
-RequestQueue + Mutex}
-⚠️ Notes
-Only retries each request once
-Prevents infinite refresh loops
-Safe for concurrent API calls
-Designed for production apps
-📈 Roadmap
- Retry policy (exponential backoff)
- JWT auto-expiry detection
- Logging system
- Dio + HTTP adapter support
- Offline queue sync
-📄 License
+);
+```
 
-MIT
+Notes:
 
-👨‍💻 Author
-
-Built for production Flutter apps using Dio with clean architecture and scalable authentication flow.
+- Use a separate `Dio` instance for refresh calls (`refreshDio`) or ensure your refresh endpoint is in `excludedPaths` to prevent interceptor recursion.
+- `AuthInterceptor` will only retry a request once to avoid infinite refresh loops.

@@ -1,31 +1,32 @@
 import 'package:dio/dio.dart';
+
 import '../manager/auth_manager.dart';
-import '../refresh/refresh_handler.dart';
-import '../storage/token_storage.dart';
+import '../utils/request_flags.dart';
+import '../utils/request_options_x.dart';
 
 class AuthInterceptor extends Interceptor {
-  final TokenStorage tokenStorage;
-  final RefreshHandler refreshHandler;
   final Dio dio;
   final AuthenticationManager auth;
 
   AuthInterceptor({
-    required this.tokenStorage,
-    required this.refreshHandler,
     required this.dio,
     required this.auth,
   });
 
   @override
-
   void onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    final token = await tokenStorage.getAccessToken();
+    if (auth.options.isExcluded(options.path)) {
+      return handler.next(options);
+    }
 
-    if (token != null) {
-      options.headers["Authorization"] = "Bearer $token";
+    final token = await auth.tokenStorage.getAccessToken();
+
+    if (token != null && !options.headers.containsKey(auth.options.authorizationHeader)) {
+      options.headers[auth.options.authorizationHeader] =
+          '${auth.options.authorizationScheme} $token';
     }
 
     handler.next(options);
@@ -41,35 +42,37 @@ class AuthInterceptor extends Interceptor {
       return handler.next(err);
     }
 
-    if (auth.options.isExcluded(err.requestOptions.path)) {
+    if (auth.options.isExcluded(request.path)) {
       return handler.next(err);
     }
 
-    if (request.extra['easy_auth_retried'] == true) {
-        return handler.next(err);
-      }
+    if (request.extra[RequestFlags.isRefreshing] == true) {
+      return handler.next(err);
+    }
+
+    if (request.isRetried) {
+      return handler.next(err);
+    }
 
     try {
-      // 1. Refresh token (handled by AuthenticationManager)
       final tokens = await auth.refreshToken();
-
-      // 2. REBUILD request safely here (Interceptor responsibility)
-      final request = err.requestOptions;
 
       final response = await dio.fetch(
         request.copyWith(
           headers: {
             ...request.headers,
-            'Authorization': 'Bearer ${tokens.accessToken}',
+            auth.options.authorizationHeader:
+                '${auth.options.authorizationScheme} ${tokens.accessToken}',
+          },
+          extra: {
+            ...request.extra,
+            RequestFlags.retried: true,
           },
         ),
       );
 
-      // 3. Return successful response
       return handler.resolve(response);
-
     } catch (e) {
-      // refresh failed → forward error
       return handler.next(err);
     }
   }

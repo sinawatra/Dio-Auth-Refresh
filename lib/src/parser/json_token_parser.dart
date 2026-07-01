@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
-import '../../dio_auth_refresh.dart';
+import '../model/auth_tokens.dart';
+import 'token_parser.dart';
 
 class JsonTokenParser extends TokenParser<AuthTokens> {
   @override

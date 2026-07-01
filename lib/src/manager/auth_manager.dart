@@ -1,7 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:dio_auth_refresh/src/motex/refresh_mutex.dart';
-
-
+import '../motex/refresh_mutex.dart';
 import '../config/easy_auth_options.dart';
 import '../model/auth_tokens.dart';
 import '../refresh/refresh_handler.dart';
@@ -77,8 +75,8 @@ class AuthenticationManager {
     RequestOptions request,
     String accessToken,
   ) {
-    request.headers["Authorization"] = "Bearer $accessToken";
-    
+    request.headers[options.authorizationHeader] =
+        '${options.authorizationScheme} $accessToken';
 
     return dio.fetch(request);
   }
